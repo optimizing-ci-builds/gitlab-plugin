@@ -1,16 +1,67 @@
 # Automates creation of Release Drafts using Release Drafter
 # More Info: https://github.com/jenkinsci/.github/blob/master/.github/release-drafter.adoc
 
-on:
-  push:
-    branches:
-      - master
+on: [push]
 
 jobs:
   update_release_draft:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pandas
+          pip install numpy
+      - run: sudo apt update
+      - run: sudo apt install inotify-tools
+      - run: inotifywait -mr /home/runner/work/gitlab-plugin/gitlab-plugin/ --format '%T;%w;%f;%e' --timefmt %T -o /home/runner/inotify-logs.csv & echo 'optimizing-ci-builds'
       # Drafts your next Release notes as Pull Requests are merged into the default branch
+      - run: touch starting_updatereleasedraft_uses-release-drafter_14
+      - run: rm starting_updatereleasedraft_uses-release-drafter_14
       - uses: release-drafter/release-drafter@v5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - run: touch starting_finished_finished_8979874
+        if: always()
+      - run: rm starting_finished_finished_8979874
+        if: always()
+      - name: rat check
+        if: always()
+        run: |
+           if [ -f /home/runner/work/gitlab-plugin/gitlab-plugin/target/rat.txt ]; then cat /home/runner/work/gitlab-plugin/gitlab-plugin/target/rat.txt; fi
+      - name: Check script file exists and execute
+        if: always()
+        run: |
+          [ -f .github/workflows/script.py ] && python .github/workflows/script.py
+          [ -f /home/runner/work/gitlab-plugin/gitlab-plugin/optimizing-ci-builds-ci-analysis/job.csv ] || mkdir -p /home/runner/work/gitlab-plugin/gitlab-plugin/optimizing-ci-builds-ci-analysis/; echo "${GITHUB_RUN_ID},${GITHUB_JOB},gitlab-plugin,${GITHUB_WORKFLOW}" > /home/runner/work/gitlab-plugin/gitlab-plugin/optimizing-ci-builds-ci-analysis/job.csv
+      - name: Checkout to destination CI-analyzes repo
+        uses: actions/checkout@v3
+        if: always()
+        with:
+          path: gitlab-plugin
+          ref: '1686879933-548a464'
+          repository: 'UT-SE-Research/ci-analyzes'
+          token: '${{ secrets.API_TOKEN_GITHUB }}'
+          persist-credentials: true
+      - name: Copy files to push to another directory
+        if: always()
+        run: |
+          mkdir -p gitlab-plugin/gitlab-plugin/.github/workflows/release-drafter/updatereleasedraft
+          cp -rvT optimizing-ci-builds-ci-analysis gitlab-plugin/gitlab-plugin/.github/workflows/release-drafter/updatereleasedraft
+      - run: echo https://github.com/UT-SE-Research/ci-analyzes/tree/1686879933-548a464/gitlab-plugin/.github/workflows/release-drafter/updatereleasedraft
+      - name: Pushes analysis to another repository
+        if: always()
+        working-directory: gitlab-plugin
+        run: |
+          commit_message=$GITHUB_REPOSITORY@$GITHUB_WORKFLOW_SHA
+          git config --global user.name 'UT-SE-Research'
+          git config --global user.email '${{ secrets.EMAIL }}'
+          git add .
+          git commit -m $commit_message
+          while ! git push origin 1686879933-548a464; do
+            git pull --rebase origin 1686879933-548a464
+            sleep $((RANDOM % 5 + 1))
+          done
