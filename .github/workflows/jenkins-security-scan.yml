@@ -3,13 +3,7 @@
 
 name: Jenkins Security Scan
 
-on:
-  push:
-    branches:
-      - master
-  pull_request:
-    types: [opened, synchronize, reopened]
-  workflow_dispatch:
+on: [push]
 
 permissions:
   security-events: write
@@ -22,3 +16,4 @@ jobs:
     with:
       java-cache: 'maven'
       java-version: 11
+
